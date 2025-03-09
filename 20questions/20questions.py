@@ -1,29 +1,25 @@
 import streamlit as st
 import pandas as pd
 import json
+import ast
 from google.oauth2.service_account import Credentials
 import gspread
 import google.generativeai as genai
 
 # Authenticate with Google Drive API using Streamlit secrets
-credentials_json = st.secrets["GOOGLE_CREDENTIALS"]
-genai_api_key = st.secrets["GENAI_API_KEY"]  # Google GenAI API Key
-
-if not credentials_json:
-    st.error("❌ ERROR: Missing Google Drive credentials. Check your Streamlit secrets!")
+try:
+    credentials_json = ast.literal_eval(st.secrets["GOOGLE_CREDENTIALS"])
+    genai_api_key = st.secrets["GENAI_API_KEY"]  # Google GenAI API Key
+except KeyError as e:
+    st.error(f"❌ ERROR: Missing {str(e)} in Streamlit secrets! Check your app settings.")
     st.stop()
-
-if not genai_api_key:
-    st.error("❌ ERROR: Missing Google GenAI API Key. Check your Streamlit secrets!")
+except Exception as e:
+    st.error(f"⚠️ Could not load secrets: {e}")
     st.stop()
 
 try:
-    creds_dict = json.loads(credentials_json)
-    creds = Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
+    creds = Credentials.from_service_account_info(credentials_json, scopes=["https://www.googleapis.com/auth/drive"])
     client = gspread.authorize(creds)
-except json.JSONDecodeError:
-    st.error("❌ ERROR: Invalid JSON format in Google Drive credentials. Check your Streamlit secrets!")
-    st.stop()
 except Exception as e:
     st.error(f"⚠️ Could not authenticate with Google Drive: {e}")
     st.stop()
