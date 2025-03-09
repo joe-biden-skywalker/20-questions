@@ -31,7 +31,7 @@ except Exception as e:
 
 # Configure Google GenAI
 genai.configure(api_key=genai_api_key)
-model = genai.GenerativeModel("gemini-pro")
+model = genai.GenerativeModel("gemini-1.5-pro-latest")
 
 # Test question to GenAI
 response = model.generate_content("What is the capital of France?")
