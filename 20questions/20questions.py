@@ -32,7 +32,7 @@ model = genai.GenerativeModel("gemini-1.5-pro-latest")
 # Load CSV file containing people for the game
 @st.cache_data
 def load_data():
-    sheet = client.open("Enriched_Friend_Data").sheet1  # Adjust sheet name if needed
+    sheet = client.open("20QuestionsPeople").sheet1  # Adjust sheet name if needed
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
