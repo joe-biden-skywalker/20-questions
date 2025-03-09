@@ -45,6 +45,7 @@ if df.empty:
     st.stop()
 
 # Configure Google GenAI
+genai.configure(api_key=genai_api_key)
 model = genai.GenerativeModel("gemini-pro")
 
 def generate_smart_question(remaining_friends, previous_questions=[]):
@@ -79,7 +80,7 @@ if len(st.session_state["remaining_friends"]) > 1:
         )
     
     st.write(st.session_state["current_question"])
-    yes_no = st.radio("Your Answer:", ["Yes", "No"], key=st.session_state["current_question"])
+    yes_no = st.radio("Your Answer:", ["Yes", "No"], key="answer")
     
     if st.button("Submit Answer"):
         st.session_state["question_history"].append(st.session_state["current_question"])
@@ -96,6 +97,7 @@ if len(st.session_state["remaining_friends"]) > 1:
         
         # Reset question
         st.session_state["current_question"] = None
+        st.rerun()
         
 # If only one friend remains, make the final guess
 if len(st.session_state["remaining_friends"]) == 1:
