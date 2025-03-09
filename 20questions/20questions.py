@@ -39,10 +39,6 @@ except Exception as e:
     st.error(f"⚠️ Could not fetch data from Google Drive: {e}")
     st.stop()
 
-# Debugging: Display column names and first few rows
-st.write("Column Names:", df.columns.tolist())
-st.write("First Few Rows:", df.head())
-
 # Ensure that the dataframe is not empty
 if df.empty:
     st.error("❌ ERROR: The data appears to be empty. Please check the source file.")
@@ -51,14 +47,20 @@ if df.empty:
 # Configure Google GenAI
 model = genai.GenerativeModel("gemini-pro")
 
-def generate_smart_question(description, previous_questions=[]):
+def generate_smart_question(remaining_friends, previous_questions=[]):
     """
-    Uses Google GenAI to generate a more natural and intelligent question
-    based on the description field.
+    Uses Google GenAI to generate a strategic yes/no question to eliminate the most possible friends.
     """
-    prompt = f"Based on the following description: '{description}', generate a yes/no question to help narrow down possible matches. Avoid repeating these questions: {previous_questions}."
+    if remaining_friends.empty:
+        return None
+    
+    prompt = (
+        "You are playing 20 Questions. Based on the following list of friend descriptions, "
+        "generate a yes/no question that will help narrow down who the player is thinking of: "
+        f"{remaining_friends['Description'].tolist()}. Avoid repeating these questions: {previous_questions}."
+    )
     response = model.generate_content(prompt)
-    return response.text if response else "Do you know this person?"
+    return response.text.strip() if response else "Do you know this person?"
 
 st.title("20 Questions AI-Powered Friend Guessing Game")
 
@@ -66,34 +68,35 @@ st.title("20 Questions AI-Powered Friend Guessing Game")
 if "questions_asked" not in st.session_state:
     st.session_state["questions_asked"] = []
     st.session_state["remaining_friends"] = df.copy()
-    st.session_state["answers"] = {}
+    st.session_state["question_history"] = []
+    st.session_state["current_question"] = None
 
-def ask_next_question():
-    """Ask the next question based on remaining friend descriptions."""
-    if st.session_state["remaining_friends"].empty:
-        st.write("No more friends left to guess!")
-        return None
+# Generate and ask a question if there are still multiple options
+if len(st.session_state["remaining_friends"]) > 1:
+    if not st.session_state["current_question"]:
+        st.session_state["current_question"] = generate_smart_question(
+            st.session_state["remaining_friends"], st.session_state["question_history"]
+        )
     
-    friend_sample = st.session_state["remaining_friends"].sample(1).iloc[0]
-    question = generate_smart_question(friend_sample.get("Description", ""), st.session_state["questions_asked"])
-    st.session_state["questions_asked"].append(question)
-    return question, friend_sample.get("Name", "Unknown")
-
-def narrow_down_choices(answer, friend_name):
-    """Eliminate friends based on the yes/no responses."""
-    if answer == "Yes":
-        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"].get("Name") == friend_name]
-    else:
-        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"].get("Name") != friend_name]
-
-# Display the question and get user input
-if st.button("Ask a Question"):
-    question_data = ask_next_question()
-    if question_data:
-        question, friend_name = question_data
-        st.write(question)
-        yes_no = st.radio("Answer:", ["Yes", "No"], key=question)
-        if st.button("Submit Answer"):
-            narrow_down_choices(yes_no, friend_name)
-            if len(st.session_state["remaining_friends"]) == 1:
-                st.success(f"I think your friend is {st.session_state['remaining_friends'].iloc[0]['Name']}!")
+    st.write(st.session_state["current_question"])
+    yes_no = st.radio("Your Answer:", ["Yes", "No"], key=st.session_state["current_question"])
+    
+    if st.button("Submit Answer"):
+        st.session_state["question_history"].append(st.session_state["current_question"])
+        
+        # Narrow down choices based on response
+        if yes_no == "Yes":
+            st.session_state["remaining_friends"] = st.session_state["remaining_friends"][
+                st.session_state["remaining_friends"]["Description"].str.contains(st.session_state["current_question"], case=False, na=False)
+            ]
+        else:
+            st.session_state["remaining_friends"] = st.session_state["remaining_friends"][
+                ~st.session_state["remaining_friends"]["Description"].str.contains(st.session_state["current_question"], case=False, na=False)
+            ]
+        
+        # Reset question
+        st.session_state["current_question"] = None
+        
+# If only one friend remains, make the final guess
+if len(st.session_state["remaining_friends"]) == 1:
+    st.success(f"I think your friend is {st.session_state['remaining_friends'].iloc[0]['Name']}!")
