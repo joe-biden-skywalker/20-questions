@@ -171,7 +171,7 @@ cython_debug/
 .pypirc
 
 # Ignore credentials file
-credentials.json
+questionsproject-12a1363ea17c.json
 
 # Ignore CSV files (if they should be private)
 *.csv
