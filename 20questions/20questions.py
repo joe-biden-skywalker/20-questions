@@ -5,6 +5,7 @@ import json
 from google.oauth2.service_account import Credentials
 import gspread
 from dotenv import load_dotenv
+from google.generativeai import configure, generate_text
 
 # Load environment variables
 load_dotenv()
@@ -12,8 +13,14 @@ load_dotenv()
 # Authenticate with Google Drive API using environment variable
 credentials_json = os.getenv("GOOGLE_CREDENTIALS")
 
+genai_api_key = os.getenv("GENAI_API_KEY")  # Google GenAI API Key
+
 if not credentials_json:
     st.error("❌ ERROR: Missing Google Drive credentials. Check your environment variables!")
+    st.stop()
+
+if not genai_api_key:
+    st.error("❌ ERROR: Missing Google GenAI API Key. Check your environment variables!")
     st.stop()
 
 creds_dict = json.loads(credentials_json)
@@ -32,53 +39,57 @@ except Exception as e:
     st.error(f"⚠️ Could not fetch data from Google Drive: {e}")
     st.stop()
 
-st.title("🎭 20 Questions: Guess Your Friend!")
-
-# Get list of attributes from CSV
-if not df.empty:
-    attribute_columns = [col for col in df.columns if col != "name"]
-else:
-    st.error("⚠️ No data found in the Google Drive file.")
+# Ensure that the first row is not treated as a question
+if df.empty or df.columns[0] == "Name":
+    st.error("❌ ERROR: Data is incorrectly structured. Please check the input file.")
     st.stop()
 
-# Initialize session state for tracking progress
-if "question_index" not in st.session_state:
-    st.session_state.question_index = 0
-    st.session_state.answers = {}
-    st.session_state.remaining_friends = df.copy()
+# Configure Google GenAI
+configure(api_key=genai_api_key)
 
-# Get the current question
-if st.session_state.question_index < len(attribute_columns):
-    attribute = attribute_columns[st.session_state.question_index]
-    question_text = f"Do you {attribute.replace('_', ' ')}?"  # Format question
+def generate_smart_question(description, previous_questions=[]):
+    """
+    Uses Google GenAI to generate a more natural and intelligent question
+    based on the description field.
+    """
+    prompt = f"Based on the following description: '{description}', generate a yes/no question to help narrow down possible matches. Avoid repeating these questions: {previous_questions}."
+    response = generate_text(prompt)
+    return response if response else "Do you know this person?"
 
-    st.write(question_text)
+st.title("20 Questions AI-Powered Friend Guessing Game")
 
-    col1, col2 = st.columns(2)
-    if col1.button("Yes"):
-        st.session_state.answers[attribute] = True
-        st.session_state.question_index += 1
-    if col2.button("No"):
-        st.session_state.answers[attribute] = False
-        st.session_state.question_index += 1
+# Initialize game state
+if "questions_asked" not in st.session_state:
+    st.session_state["questions_asked"] = []
+    st.session_state["remaining_friends"] = df.copy()
+    st.session_state["answers"] = {}
 
-else:
-    # Filter friend list based on answers
-    for attribute, value in st.session_state.answers.items():
-        st.session_state.remaining_friends = st.session_state.remaining_friends[
-            st.session_state.remaining_friends[attribute] == value
-        ]
+def ask_next_question():
+    """Ask the next question based on remaining friend descriptions."""
+    if st.session_state["remaining_friends"].empty:
+        st.write("No more friends left to guess!")
+        return None
+    
+    friend_sample = st.session_state["remaining_friends"].sample(1).iloc[0]
+    question = generate_smart_question(friend_sample["Description"], st.session_state["questions_asked"])
+    st.session_state["questions_asked"].append(question)
+    return question, friend_sample["Name"]
 
-    if len(st.session_state.remaining_friends) == 1:
-        st.success(f"🎉 I think your friend is **{st.session_state.remaining_friends.iloc[0]['name']}**!")
-    elif len(st.session_state.remaining_friends) > 1:
-        st.info("🤔 I couldn't narrow it down to one person, but here are the possible matches:")
-        for name in st.session_state.remaining_friends["name"]:
-            st.write(f"- {name}")
+def narrow_down_choices(answer, friend_name):
+    """Eliminate friends based on the yes/no responses."""
+    if answer == "Yes":
+        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"]["Name"] == friend_name]
     else:
-        st.warning("😕 I couldn't find a match based on your answers!")
+        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"]["Name"] != friend_name]
 
-    if st.button("Restart"):
-        st.session_state.question_index = 0
-        st.session_state.answers = {}
-        st.session_state.remaining_friends = df.copy()
+# Display the question and get user input
+if st.button("Ask a Question"):
+    question_data = ask_next_question()
+    if question_data:
+        question, friend_name = question_data
+        st.write(question)
+        yes_no = st.radio("Answer:", ["Yes", "No"], key=question)
+        if st.button("Submit Answer"):
+            narrow_down_choices(yes_no, friend_name)
+            if len(st.session_state["remaining_friends"]) == 1:
+                st.success(f"I think your friend is {st.session_state['remaining_friends'].iloc[0]['Name']}!")
