@@ -39,9 +39,13 @@ except Exception as e:
     st.error(f"⚠️ Could not fetch data from Google Drive: {e}")
     st.stop()
 
-# Ensure that the first row is not treated as a question
-if df.empty or df.columns[0] == "Name":
-    st.error("❌ ERROR: Data is incorrectly structured. Please check the input file.")
+# Debugging: Display column names and first few rows
+st.write("Column Names:", df.columns.tolist())
+st.write("First Few Rows:", df.head())
+
+# Ensure that the dataframe is not empty
+if df.empty:
+    st.error("❌ ERROR: The data appears to be empty. Please check the source file.")
     st.stop()
 
 # Configure Google GenAI
@@ -71,16 +75,16 @@ def ask_next_question():
         return None
     
     friend_sample = st.session_state["remaining_friends"].sample(1).iloc[0]
-    question = generate_smart_question(friend_sample["Description"], st.session_state["questions_asked"])
+    question = generate_smart_question(friend_sample.get("Description", ""), st.session_state["questions_asked"])
     st.session_state["questions_asked"].append(question)
-    return question, friend_sample["Name"]
+    return question, friend_sample.get("Name", "Unknown")
 
 def narrow_down_choices(answer, friend_name):
     """Eliminate friends based on the yes/no responses."""
     if answer == "Yes":
-        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"]["Name"] == friend_name]
+        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"].get("Name") == friend_name]
     else:
-        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"]["Name"] != friend_name]
+        st.session_state["remaining_friends"] = st.session_state["remaining_friends"][st.session_state["remaining_friends"].get("Name") != friend_name]
 
 # Display the question and get user input
 if st.button("Ask a Question"):
