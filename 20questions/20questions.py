@@ -11,12 +11,13 @@ genai_api_key = "AIzaSyBV7OwC34Z4lFOQYSb26cM4-eR1Bb35HCY"
 
 # Authenticate with Google Drive API using Streamlit secrets
 try:
-    credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
-except KeyError as e:
-    st.error(f"❌ ERROR: Missing {str(e)} in Streamlit secrets! Check your app settings.")
+    credentials_raw = st.secrets["GOOGLE_CREDENTIALS"]
+    credentials_json = json.loads(credentials_raw)  # Convert string to dict
+except KeyError:
+    st.error("❌ ERROR: Missing GOOGLE_CREDENTIALS in Streamlit secrets! Check your app settings.")
     st.stop()
-except Exception as e:
-    st.error(f"⚠️ Could not load secrets: {e}")
+except json.JSONDecodeError:
+    st.error("⚠️ Could not parse GOOGLE_CREDENTIALS as JSON. Make sure it's correctly formatted in Streamlit secrets.")
     st.stop()
 
 try:
