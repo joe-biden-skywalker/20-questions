@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 
 # Load secrets from a single section
 try:
-    secrets = st.secrets["SECRETS"]  # Everything is under one key now
+    secrets = st.secrets["SECRETS"]  # All secrets are inside "SECRETS"
     credentials_json = json.loads(secrets["GOOGLE_CREDENTIALS"])
     genai_api_key = secrets["GENAI_API_KEY"]
 except KeyError as e:
@@ -15,13 +15,12 @@ except json.JSONDecodeError as e:
     st.error(f"❌ ERROR: Invalid JSON format in Google credentials: {e}")
     st.stop()
 
-# Debugging: Ensure private_key exists and is correctly formatted
+# Ensure the private key is properly formatted
 if "private_key" not in credentials_json:
     st.error("❌ ERROR: Missing 'private_key' in Google credentials!")
     st.stop()
 
-# Ensure private key is formatted correctly
-credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")
+credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n").strip()
 
 # Authenticate with Google Drive
 try:
