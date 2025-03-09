@@ -3,9 +3,9 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Load secrets from a single section
+# Load secrets from Streamlit
 try:
-    secrets = st.secrets["SECRETS"]  # All secrets are inside "SECRETS"
+    secrets = st.secrets["SECRETS"]  # Fetch the nested secrets dictionary
     credentials_json = json.loads(secrets["GOOGLE_CREDENTIALS"])
     genai_api_key = secrets["GENAI_API_KEY"]
 except KeyError as e:
@@ -15,11 +15,12 @@ except json.JSONDecodeError as e:
     st.error(f"❌ ERROR: Invalid JSON format in Google credentials: {e}")
     st.stop()
 
-# Ensure the private key is properly formatted
+# Ensure private key is formatted properly
 if "private_key" not in credentials_json:
     st.error("❌ ERROR: Missing 'private_key' in Google credentials!")
     st.stop()
 
+# Fix newlines in private key
 credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n").strip()
 
 # Authenticate with Google Drive
