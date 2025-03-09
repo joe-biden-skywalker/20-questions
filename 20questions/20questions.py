@@ -53,45 +53,35 @@ if "question_count" not in st.session_state:
 st.title("20 Questions Game")
 st.write("Think of a person from the list, and I will try to guess who it is!")
 
-# Generate a yes/no question from the available attributes
-def generate_question():
+# Generate a smarter question using GenAI
+def generate_smart_question():
     if st.session_state.possible_people.empty:
         return "I couldn't guess who you are thinking of! Try again."
     
     remaining_people = st.session_state.possible_people
-    remaining_attributes = list(people_df.columns[1:])  # Exclude 'Name' column
+    descriptions = remaining_people["Description"].tolist()
     
-    # Pick an attribute that helps divide the group best
-    for attribute in remaining_attributes:
-        unique_values = remaining_people[attribute].dropna().unique()
-        if len(unique_values) > 1:
-            sample_value = unique_values[0]
-            return f"Does this person have the characteristic: {attribute} = {sample_value}?"
+    prompt = (
+        "You are playing a 20 Questions game to guess a person. "
+        "You can ask yes/no questions to narrow down possibilities. "
+        "Based on these descriptions: " + str(descriptions) + 
+        " Generate a yes/no question that will help identify the person. "
+        "Make sure the question is well-phrased and sounds natural."
+    )
     
-    return "I have run out of useful questions!"
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 if not st.session_state.game_over:
     if st.button("Ask a Question") or st.session_state.current_question:
         if not st.session_state.current_question:
-            st.session_state.current_question = generate_question()
+            st.session_state.current_question = generate_smart_question()
         st.write(f"**Question {st.session_state.question_count + 1}:** {st.session_state.current_question}")
 
     # Handle user response
     if st.session_state.current_question:
         user_response = st.radio("Answer the question:", ["Yes", "No"], key="user_response")
         if st.button("Submit Response"):
-            attribute = st.session_state.current_question.split(" = ")[0].replace("Does this person have the characteristic: ", "").strip()
-            value = st.session_state.current_question.split(" = ")[1].replace("?", "").strip()
-            
-            if user_response == "Yes":
-                st.session_state.possible_people = st.session_state.possible_people[
-                    st.session_state.possible_people[attribute] == value
-                ]
-            else:
-                st.session_state.possible_people = st.session_state.possible_people[
-                    st.session_state.possible_people[attribute] != value
-                ]
-            
             st.session_state.questions_asked.append(st.session_state.current_question)
             st.session_state.current_question = None
             st.session_state.question_count += 1
