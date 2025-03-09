@@ -71,7 +71,7 @@ if st.session_state.game_started and not st.session_state.game_over:
     st.write(f"**Question {st.session_state.question_count + 1}:** {st.session_state.current_question}")
 
     user_response = st.radio("Answer the question:", ["Yes", "No"], key="user_response")
-    if st.button("Submit Response"):
+    if st.button("Next Question"):
         st.session_state.questions_asked.append(st.session_state.current_question)
         st.session_state.question_count += 1
         
