@@ -2,6 +2,10 @@ import streamlit as st
 import json
 from google.oauth2.service_account import Credentials
 import gspread
+import google.generativeai as genai
+
+# Hardcoded GenAI API key
+genai_api_key = "AIzaSyBV7OwC34Z4lFOQYSb26cM4-eR1Bb35HCY"
 
 # Load Google Credentials from Streamlit secrets
 try:
@@ -24,3 +28,11 @@ try:
 except Exception as e:
     st.error(f"⚠️ Could not authenticate with Google Drive: {e}")
     st.stop()
+
+# Configure Google GenAI
+genai.configure(api_key=genai_api_key)
+model = genai.GenerativeModel("gemini-pro")
+
+# Test question to GenAI
+response = model.generate_content("What is the capital of France?")
+st.write("Test Response:", response.text)
