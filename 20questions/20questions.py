@@ -47,43 +47,66 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = None
 if "game_over" not in st.session_state:
     st.session_state.game_over = False
+if "question_count" not in st.session_state:
+    st.session_state.question_count = 0
 
 st.title("20 Questions Game")
 st.write("Think of a person from the list, and I will try to guess who it is!")
 
-# Generate a yes/no question to narrow down the possibilities
+# Generate a yes/no question from the available attributes
 def generate_question():
     if st.session_state.possible_people.empty:
         return "I couldn't guess who you are thinking of! Try again."
-    attributes = list(people_df.columns)
-    question_prompt = (
-        "I am playing 20 Questions. I need a yes/no question to help identify a person based on these attributes: "
-        + ", ".join(attributes) + ". Make it relevant to narrowing down the list of possible people."
-    )
-    response = model.generate_content(question_prompt)
-    return response.text.strip()
+    
+    remaining_people = st.session_state.possible_people
+    remaining_attributes = list(people_df.columns[1:])  # Exclude 'Name' column
+    
+    # Pick an attribute that helps divide the group best
+    for attribute in remaining_attributes:
+        unique_values = remaining_people[attribute].dropna().unique()
+        if len(unique_values) > 1:
+            sample_value = unique_values[0]
+            return f"Does this person have the characteristic: {attribute} = {sample_value}?"
+    
+    return "I have run out of useful questions!"
 
 if not st.session_state.game_over:
     if st.button("Ask a Question") or st.session_state.current_question:
         if not st.session_state.current_question:
             st.session_state.current_question = generate_question()
-        st.write(f"**Question:** {st.session_state.current_question}")
+        st.write(f"**Question {st.session_state.question_count + 1}:** {st.session_state.current_question}")
 
     # Handle user response
     if st.session_state.current_question:
         user_response = st.radio("Answer the question:", ["Yes", "No"], key="user_response")
         if st.button("Submit Response"):
+            attribute = st.session_state.current_question.split(" = ")[0].replace("Does this person have the characteristic: ", "").strip()
+            value = st.session_state.current_question.split(" = ")[1].replace("?", "").strip()
+            
             if user_response == "Yes":
-                st.session_state.possible_people = st.session_state.possible_people.sample(frac=0.5)  # Simplified filtering logic
+                st.session_state.possible_people = st.session_state.possible_people[
+                    st.session_state.possible_people[attribute] == value
+                ]
+            else:
+                st.session_state.possible_people = st.session_state.possible_people[
+                    st.session_state.possible_people[attribute] != value
+                ]
+            
             st.session_state.questions_asked.append(st.session_state.current_question)
             st.session_state.current_question = None
-
+            st.session_state.question_count += 1
+            
             if len(st.session_state.possible_people) == 1:
                 st.write(f"I believe that you are {st.session_state.possible_people.iloc[0]['Name']}!")
                 st.session_state.game_over = True
-                st.session_state.possible_people = people_df.copy()
-                st.session_state.questions_asked = []
-                st.session_state.current_question = None
+            elif st.session_state.question_count >= 20:
+                best_guess = st.session_state.possible_people.iloc[0]['Name'] if not st.session_state.possible_people.empty else "I couldn't guess!"
+                st.write(f"I believe that you are {best_guess}!")
+                st.session_state.game_over = True
 
 if st.session_state.game_over and st.button("Play Again"):
     st.session_state.game_over = False
+    st.session_state.questions_asked = []
+    st.session_state.possible_people = people_df.copy()
+    st.session_state.current_question = None
+    st.session_state.question_count = 0
