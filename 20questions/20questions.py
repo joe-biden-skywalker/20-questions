@@ -7,6 +7,7 @@ import gspread
 try:
     credentials_raw = st.secrets["GOOGLE_CREDENTIALS"]  # This is already a string
     credentials_json = json.loads(credentials_raw)  # Convert string to a Python dictionary
+    credentials_json["private_key"] = credentials_json["private_key"].replace("\\n", "\n")  # Fix newlines!
     st.write("✅ Successfully loaded GOOGLE_CREDENTIALS from Streamlit secrets!")  # Debugging
 except KeyError:
     st.error("❌ ERROR: Missing GOOGLE_CREDENTIALS in Streamlit secrets! Check your app settings.")
