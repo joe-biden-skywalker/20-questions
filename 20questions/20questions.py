@@ -109,3 +109,4 @@ if len(st.session_state["remaining_friends"]) > 1:
 # If only one friend remains, make the final guess
 if len(st.session_state["remaining_friends"]) == 1:
     st.success(f"I think your friend is {st.session_state['remaining_friends'].iloc[0]['Name']}!")
+
