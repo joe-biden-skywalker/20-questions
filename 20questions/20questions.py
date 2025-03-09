@@ -5,7 +5,7 @@ import json
 from google.oauth2.service_account import Credentials
 import gspread
 from dotenv import load_dotenv
-from google.generativeai import configure, generate_text
+import google.generativeai as genai
 
 # Load environment variables
 load_dotenv()
@@ -45,7 +45,7 @@ if df.empty or df.columns[0] == "Name":
     st.stop()
 
 # Configure Google GenAI
-configure(api_key=genai_api_key)
+model = genai.GenerativeModel("gemini-pro")
 
 def generate_smart_question(description, previous_questions=[]):
     """
@@ -53,8 +53,8 @@ def generate_smart_question(description, previous_questions=[]):
     based on the description field.
     """
     prompt = f"Based on the following description: '{description}', generate a yes/no question to help narrow down possible matches. Avoid repeating these questions: {previous_questions}."
-    response = generate_text(prompt)
-    return response if response else "Do you know this person?"
+    response = model.generate_content(prompt)
+    return response.text if response else "Do you know this person?"
 
 st.title("20 Questions AI-Powered Friend Guessing Game")
 
