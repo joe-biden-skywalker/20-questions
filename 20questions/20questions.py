@@ -23,9 +23,16 @@ if not genai_api_key:
     st.error("❌ ERROR: Missing Google GenAI API Key. Check your environment variables!")
     st.stop()
 
-creds_dict = json.loads(credentials_json)
-creds = Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
-client = gspread.authorize(creds)
+try:
+    creds_dict = json.loads(credentials_json)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
+    client = gspread.authorize(creds)
+except json.JSONDecodeError:
+    st.error("❌ ERROR: Invalid JSON format in Google Drive credentials. Check your environment variables!")
+    st.stop()
+except Exception as e:
+    st.error(f"⚠️ Could not authenticate with Google Drive: {e}")
+    st.stop()
 
 # Google Drive file details
 spreadsheet_name = "Enriched_Friend_Data"  # Update if needed
@@ -53,7 +60,7 @@ def generate_smart_question(remaining_friends, previous_questions=[]):
     Uses Google GenAI to generate a strategic yes/no question to eliminate the most possible friends.
     """
     if remaining_friends.empty:
-        return None
+        return "Are you thinking of someone?"
     
     prompt = (
         "You are playing 20 Questions. Based on the following list of friend descriptions, "
@@ -70,7 +77,7 @@ if "questions_asked" not in st.session_state:
     st.session_state["questions_asked"] = []
     st.session_state["remaining_friends"] = df.copy()
     st.session_state["question_history"] = []
-    st.session_state["current_question"] = None
+    st.session_state["current_question"] = ""
 
 # Generate and ask a question if there are still multiple options
 if len(st.session_state["remaining_friends"]) > 1:
@@ -96,7 +103,7 @@ if len(st.session_state["remaining_friends"]) > 1:
             ]
         
         # Reset question
-        st.session_state["current_question"] = None
+        st.session_state["current_question"] = ""
         st.rerun()
         
 # If only one friend remains, make the final guess
