@@ -1,26 +1,20 @@
 import streamlit as st
 import pandas as pd
-import os
 import json
 from google.oauth2.service_account import Credentials
 import gspread
-from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables
-load_dotenv()
-
-# Authenticate with Google Drive API using environment variable
-credentials_json = os.getenv("GOOGLE_CREDENTIALS")
-
-genai_api_key = os.getenv("GENAI_API_KEY")  # Google GenAI API Key
+# Authenticate with Google Drive API using Streamlit secrets
+credentials_json = st.secrets["GOOGLE_CREDENTIALS"]
+genai_api_key = st.secrets["GENAI_API_KEY"]  # Google GenAI API Key
 
 if not credentials_json:
-    st.error("❌ ERROR: Missing Google Drive credentials. Check your environment variables!")
+    st.error("❌ ERROR: Missing Google Drive credentials. Check your Streamlit secrets!")
     st.stop()
 
 if not genai_api_key:
-    st.error("❌ ERROR: Missing Google GenAI API Key. Check your environment variables!")
+    st.error("❌ ERROR: Missing Google GenAI API Key. Check your Streamlit secrets!")
     st.stop()
 
 try:
@@ -28,7 +22,7 @@ try:
     creds = Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
     client = gspread.authorize(creds)
 except json.JSONDecodeError:
-    st.error("❌ ERROR: Invalid JSON format in Google Drive credentials. Check your environment variables!")
+    st.error("❌ ERROR: Invalid JSON format in Google Drive credentials. Check your Streamlit secrets!")
     st.stop()
 except Exception as e:
     st.error(f"⚠️ Could not authenticate with Google Drive: {e}")
@@ -109,4 +103,3 @@ if len(st.session_state["remaining_friends"]) > 1:
 # If only one friend remains, make the final guess
 if len(st.session_state["remaining_friends"]) == 1:
     st.success(f"I think your friend is {st.session_state['remaining_friends'].iloc[0]['Name']}!")
-
