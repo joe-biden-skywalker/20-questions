@@ -43,48 +43,67 @@ if "questions_asked" not in st.session_state:
     st.session_state.questions_asked = []
 if "possible_people" not in st.session_state:
     st.session_state.possible_people = people_df.copy()
-if "question_list" not in st.session_state:
-    st.session_state.question_list = []
 if "game_over" not in st.session_state:
     st.session_state.game_over = False
 if "question_count" not in st.session_state:
     st.session_state.question_count = 0
 if "game_started" not in st.session_state:
     st.session_state.game_started = False
+if "current_question" not in st.session_state:
+    st.session_state.current_question = ""
 
 st.title("20 Questions Game")
 st.write("I will guess who you are in 20 yes/no questions or less.")
 
-# Function to generate strategic yes/no questions using GenAI
-def generate_questions():
+# Function to generate a strategic yes/no question using GenAI
+def generate_question():
     remaining_people = st.session_state.possible_people
-    context = f"We are playing a 20 Questions game. You must guess a person based on yes/no answers. The remaining candidates have these descriptions: {remaining_people['Description'].tolist()}. Generate 5 strategic yes/no questions to help narrow down the choices." 
+    context = f"We are playing a 20 Questions game. You must guess a person based on yes/no answers. The remaining candidates have these descriptions: {remaining_people['Description'].tolist()}. Generate ONE strategic yes/no question to help narrow down the choices." 
     response = model.generate_content(context)
-    return response.text.strip().split("\n")[:5]  # Take only 5 questions
+    return response.text.strip()
 
+# Start game button
 if not st.session_state.game_started:
     if st.button("Start Game"):
         st.session_state.game_started = True
-        st.session_state.question_list = generate_questions()
         st.session_state.question_count = 0
+        st.session_state.questions_asked = []
+        st.session_state.possible_people = people_df.copy()
+        st.session_state.current_question = generate_question()
 
+# Game logic
 if st.session_state.game_started and not st.session_state.game_over:
-    if st.session_state.question_count < len(st.session_state.question_list):
-        current_question = st.session_state.question_list[st.session_state.question_count]
-        st.write(f"**Question {st.session_state.question_count + 1}:** {current_question}")
+    if st.session_state.question_count < 20 and len(st.session_state.possible_people) > 1:
+        st.write(f"**Question {st.session_state.question_count + 1}:** {st.session_state.current_question}")
         user_response = st.radio("Answer the question:", ["Yes", "No"], key=f"response_{st.session_state.question_count}")
+        
         if st.button("Next Question"):
-            st.session_state.questions_asked.append(current_question)
+            st.session_state.questions_asked.append(st.session_state.current_question)
             st.session_state.question_count += 1
+            
+            # Filter possible people based on the response
+            if user_response == "Yes":
+                st.session_state.possible_people = st.session_state.possible_people.sample(frac=0.5)  # Temporary filtering logic
+            else:
+                st.session_state.possible_people = st.session_state.possible_people.sample(frac=0.5)  # Temporary filtering logic
+            
+            # Generate the next question
+            if len(st.session_state.possible_people) > 1 and st.session_state.question_count < 20:
+                st.session_state.current_question = generate_question()
+            else:
+                best_guess = st.session_state.possible_people.iloc[0]['Name'] if not st.session_state.possible_people.empty else "I couldn't guess!"
+                st.write(f"I believe that you are {best_guess}!")
+                st.session_state.game_over = True
     else:
         best_guess = st.session_state.possible_people.iloc[0]['Name'] if not st.session_state.possible_people.empty else "I couldn't guess!"
         st.write(f"I believe that you are {best_guess}!")
         st.session_state.game_over = True
 
+# Reset game
 if st.session_state.game_over and st.button("Play Again"):
     st.session_state.game_started = False
     st.session_state.game_over = False
     st.session_state.questions_asked = []
     st.session_state.possible_people = people_df.copy()
-    st.session_state.question_list = []
     st.session_state.question_count = 0
+    st.session_state.current_question = ""
