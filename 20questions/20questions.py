@@ -8,9 +8,8 @@ import google.generativeai as genai
 
 # Authenticate with Google Drive API using Streamlit secrets
 try:
-    secrets = json.loads(st.secrets["secrets"])
-    credentials_json = secrets["GOOGLE_CREDENTIALS"]
-    genai_api_key = secrets["GENAI_API_KEY"]  # Google GenAI API Key
+    credentials_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+    genai_api_key = st.secrets["GENAI_API_KEY"]
 except KeyError as e:
     st.error(f"❌ ERROR: Missing {str(e)} in Streamlit secrets! Check your app settings.")
     st.stop()
